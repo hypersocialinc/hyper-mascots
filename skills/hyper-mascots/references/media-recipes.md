@@ -46,38 +46,91 @@ long tools, books, phones, or other detached props: the matte tool filters dista
 components, so a prop may need a better mask or a narrowly adjusted keep region.
 Do not silently discard it.
 
-## Idle and hover loops
+## Idle, hover and state loops
 
-The pal idle loops used `fal-ai/kling-video/v2.5-turbo/pro/image-to-video`, five
-seconds, with the SAME still URL as `image_url` and `tail_image_url`.
+Generate every motion clip with `minimax/h3-max/image-to-video` (H3 Max). Do not
+use Kling, and do not use `minimax/h3-max-turbo/*` for a final asset: Turbo is the
+draft tier and is visibly softer. The earlier pal and role loops were made with
+`fal-ai/kling-video/v2.5-turbo/pro/image-to-video`; that recipe is retired
+because it smeared thin lines such as orbit rings.
 
-Exact historical pal prompt:
+**A loop needs a first frame AND a last frame.** Pass the still as `image_url`
+(first frame) and as `end_image_url` (last frame):
 
-> The cute small blob is on a phone call, holding its phone to its face. It listens happily: nods, blinks, bounces a little, and waves a tiny hand once. Its mouth stays in a small smile. It stays centred and the same size and colours. Static locked camera, plain black background, nothing else appears, no text. Seamless loop that ends exactly as it starts.
+- a seamless loop (idle, hover, working): the SAME still URL for both;
+- a transition (rings appear, a bubble pops in): the starting still as
+  `image_url` and the ending still as `end_image_url`. Play it backwards with
+  FFmpeg for the reverse transition instead of generating it twice.
 
-For a role mascot, replace the phone action with one small action involving its
-own prop. Preserve the locked camera, same size/colors, centered pose, and
-closed-mouth smile. One representative loop is enough to judge the family’s
-motion style before generating all roles.
+Without `end_image_url` the clip drifts and will not loop. `genmedia schema`
+returns null for this endpoint; these inputs were read on 2026-10-10 from
+`https://fal.ai/api/openapi/queue/openapi.json?endpoint_id=minimax/h3-max/image-to-video`.
+Re-read that page if a field is refused:
+
+| Input | Value |
+|---|---|
+| `image_url` | first frame |
+| `end_image_url` | last frame |
+| `prompt` | required |
+| `prompt_expansion_mode` | required; `disabled` keeps the prompt as written, `balanced` is the default |
+| `duration` | seconds, default 5; output can run about 0.7 s longer, so trim to the loop |
+| `resolution` | `480P`, `768P` or `1080P`; use `1080P` |
+| `seed` | optional; record the one used |
 
 ```sh
-genmedia run fal-ai/kling-video/v2.5-turbo/pro/image-to-video \
-  --image_url '<still CDN URL>' --tail_image_url '<same still CDN URL>' \
-  --duration 5 --prompt '<idle prompt>' --async --json
-genmedia status fal-ai/kling-video/v2.5-turbo/pro/image-to-video \
+genmedia run minimax/h3-max/image-to-video \
+  --image_url '<first-frame still CDN URL>' --end_image_url '<last-frame still CDN URL>' \
+  --prompt '<loop prompt>' --prompt_expansion_mode disabled \
+  --duration 5 --resolution 1080P --async --json
+genmedia status minimax/h3-max/image-to-video \
   '<request ID>' --download './output/clips/' --json
 ```
 
-The first/last constraint reduces seams; inspect the actual loop. A large turn,
-strong bounce, or added objects may change the silhouette or zoom the character.
+Prompt shape that worked for the pals: one small action involving the role's own
+prop, then "It stays centred and the same size and colours. Its mouth stays in a
+small smile. Locked-off camera: no zoom, no push-in. Plain black background,
+nothing else appears, no text. Seamless loop that ends exactly as it starts."
+Say how the shot ends. One representative loop is enough to judge the family's
+motion style before generating all roles.
+
+The first/last constraint reduces seams; inspect the actual loop boundary. A
+large turn, strong bounce, or added objects may change the silhouette or zoom
+the character.
+
+## A state set for an agent mascot
+
+The set the HyperCoder owner settled on 2026-10-10, after rejecting quieter
+versions. Each state is its own clip; the page swaps clips, it does not draw.
+
+| State | Clip | First frame, last frame |
+|---|---|---|
+| Rest | calm bob and blink, no orbit rings | ring-free still, same still |
+| Hover reaction | lights up, hops, rings whoosh in; play at about 1.8x so it lands in under 3 s | ring-free still, ringed still |
+| Hover loop | bouncing, rings whirling; plays while the pointer stays | ringed still, same still |
+| Rings leave | the hover reaction or a rings-in clip reversed with FFmpeg | (no generation) |
+| Working | the role USES ITS PROP, visibly and at an energetic pace, rings spinning | working still, same still |
+| Done, not seen | a speech bubble pops in and holds; no rings | ring-free still, bubble still |
+
+- Rings mean "active". They appear on hover and while working, and are gone at
+  rest and when done. Make a ring-free still by editing the approved still.
+- Working: make a working still first (the prop in use, e.g. a marker with its
+  tip on the map), then loop from it. Ask for marks that clear by the end so the
+  loop closes. A big, clearly coloured prop moving fast was preferred; a small or
+  slow one read as idle or was invisible at pill size.
+- Hover must feel like a reaction, not a fade. A 5 s gentle transition was
+  called lame; the fix was an excited clip, sped up, plus a CSS pop on entry.
+- Measure before claiming a loop is calm or busy: mean frame-to-frame change at
+  the real display size (28 px for a pill) settles it. Check each loop's
+  last-to-first frame difference against its normal frame step, and each
+  handoff between clips the same way.
 
 ## Voice and speaking clips
 
 Choose the app’s voice. The ElevenLabs helper requires `MASCOT_VOICE` and uses
 neutral pitch/tempo by default. `MASCOT_RATE_MULTIPLIER` and `MASCOT_TEMPO` can
 apply a chosen character treatment. The HyperCoder preset records its Jessica
-voice/pitch separately. For another explicitly selected speech provider, use its
-verified GenMedia schema and the same local media/export pipeline.
+voice/pitch separately. ElevenLabs is the only speech
+provider in this workflow.
 
 ```sh
 MASCOT_VOICE='<chosen ElevenLabs voice>' \
@@ -89,12 +142,19 @@ Verify `elevenlabs/tts/eleven-v4` before using the helper. Short section intros 
 be about 3–5 seconds; a full tour explanation can be longer. Keep the established
 voice and conversational phrasing, not a generic marketing paragraph.
 
-Verify and inspect `minimax/h3-max/lip-sync/image-to-video` before using it. Its
-current recipe requires audio of at least five seconds: pad a shorter recording
-with silence for generation, then trim the final clip to the spoken line. Use
-`enable_transcription: false` when supported to avoid unnecessary transcription;
-still inspect output for burned-in captions. Unsupported prompt/flag fields may
-be silently ignored, so do not invent “no subtitles” API options.
+Speech is always two steps: the voice line from ElevenLabs
+(`scripts/voice-line.sh`, above), then `minimax/h3-max/lip-sync/image-to-video`
+with that audio. Do not use another lip-sync model, and do not use H3 Max Turbo
+with `target_audio_url` for speech: it only loosely follows the audio. The
+lip-sync endpoint takes no prompt and no last frame; its inputs (read
+2026-10-10 from the same OpenAPI page) are `image_url`, `audio_url`,
+`resolution` (`480P`, `768P`, `1080P`, `2K`), `enable_transcription` and `seed`.
+Audio must be at least five seconds: pad a shorter recording with silence for
+generation, then trim the final clip to the spoken line. `enable_transcription
+true` gave the tightest sync in another project but can write the spoken words
+into empty parts of the frame; start with `false`, switch it on if sync is
+loose, and inspect every take for burned-in text either way. Unsupported fields
+may be silently ignored, so do not invent "no subtitles" API options.
 
 ```sh
 ffmpeg -y -i ./output/voice/intro.mp3 -af apad -t 5.2 \
@@ -121,12 +181,13 @@ Record the measured coordinates and review tracking offsets for false locks.
 
 ## Transparent video export
 
-For Kling idles, set `MASCOT_KEEP=all` in the export invocation; for talking clips
+For idle and state loops, set `MASCOT_KEEP=all` in the export invocation; for talking clips
 use `captions` only when its prop-removal heuristic is appropriate.
 
 Install `pillow numpy scipy` into a temporary or ignored virtual environment and
 set `MASCOT_PYTHON` to that interpreter. `ffmpeg` is required; HEVC alpha encoding
-uses macOS VideoToolbox. Verify the live `fal-ai/birefnet/v2/video` schema first.
+uses macOS VideoToolbox. Masks come from `fal-ai/birefnet/v2` on every frame (the
+default); see [transparent video](transparent-video.md).
 The helper requests a BiRefNet mask video for the final raw MP4, then extracts
 both streams with identical crop, padding, and 24fps. It preserves non-square crop
 aspect ratio with letterboxing instead of squashing the character.
@@ -216,7 +277,7 @@ beside raw sources as well; the export record cannot invent the generation promp
     "source": "source/planner.png",
     "kind": "idle",
     "generation": {
-      "endpoint": "fal-ai/kling-video/v2.5-turbo/pro/image-to-video",
+      "endpoint": "minimax/h3-max/image-to-video",
       "prompt": "Exact successful prompt recorded after generation",
       "request_id": "Provider request ID recorded after generation"
     },

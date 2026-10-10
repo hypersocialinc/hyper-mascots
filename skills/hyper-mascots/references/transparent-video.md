@@ -6,7 +6,14 @@ color and alpha aligned as the character moves.
 
 ## Frame pipeline
 
-1. Generate/download a mask with GenMedia’s verified BiRefNet video endpoint.
+1. Make the mask by running BiRefNet v2 (`fal-ai/birefnet/v2`, the IMAGE model) on
+   EVERY FRAME, many frames in parallel, and recompose the mask frames into a
+   video with FFmpeg. `scripts/alpha-clip.sh` does this by default through
+   `scripts/frame-masks.sh` (`MASCOT_MASK_JOBS`, default 8 at once; a 5 s clip is
+   about 124 frames and took 47 s at 12 jobs). This is how the transparent Hype
+   clips were made. The one-call video endpoint (`MASCOT_MASK_MODE=video`,
+   `fal-ai/birefnet/v2/video`) is a cheaper fallback that drops thin parts such as
+   orbit rings; do not use it for a final asset.
 2. Extract RGB and mask frames with the same crop, padding and frame rate.
 3. Use `scripts/matte.py` to keep body/eyes/props opaque and apply the selected
    per-frame outline. `all` keeps detached props; `captions` is a heuristic that

@@ -38,11 +38,18 @@ def run():
             "root=Path(os.environ['MASCOT_SMOKE_ROOT'])",
             "if os.environ.get('FORBID_GENMEDIA')=='1': raise SystemExit(97)",
             "with (root/'calls.jsonl').open('a') as log: print(json.dumps(a),file=log)",
-            "if a[0]=='upload': print(json.dumps({'cdn_url':'https://example.invalid/'+Path(a[1]).stem}))",
+            "if a[0]=='upload' and a[1].endswith('.png'): print(json.dumps({'cdn_url':'https://example.invalid/frame/'+a[1].encode().hex()}))",
+            "elif a[0]=='upload': print(json.dumps({'cdn_url':'https://example.invalid/'+Path(a[1]).stem}))",
             "elif a[0]=='run':",
             " assert '--download' in a,a",
             " if a[1]=='fal-ai/birefnet/v2/video':",
             "  field='mask_video'; stem=a[a.index('--video_url')+1].rsplit('/',1)[1]; path=root/(stem+'-mask.mp4')",
+            " elif a[1]=='fal-ai/birefnet/v2':",
+            "  import subprocess",
+            "  frame=Path(bytes.fromhex(a[a.index('--image_url')+1].rsplit('/',1)[1]).decode()); n=int(frame.stem.split('_')[1])-1",
+            "  width=subprocess.check_output(['ffprobe','-v','error','-select_streams','v:0','-show_entries','stream=width','-of','csv=p=0',str(frame)]).decode().strip()",
+            "  field='mask_image'; path=Path(a[a.index('--download')+1])/'mask.png'",
+            "  subprocess.run(['ffmpeg','-v','error','-y','-i',str(root/(('wide' if width=='192' else 'source')+'-mask.mp4')),'-vf','select=eq(n\\\\,'+str(n)+')','-frames:v','1','-update','1',str(path)],check=True)",
             " elif a[1]=='elevenlabs/tts/eleven-v4': field='audio'; path=root/'raw.mp3'",
             " else: raise SystemExit('Unexpected model request')",
             " url='https://example.invalid/'+path.name",
@@ -59,7 +66,10 @@ def run():
         assert rgba[80,80,3]>240 and max(rgba[80,80,:3])<45,'Dark eye became a mask hole'
         manifest=json.loads((task/'web/first.json').read_text())
         assert manifest['finish']=='outline' and manifest['mask_origin']=='fetched'
-        assert manifest['matte']['frames']==12 and manifest['mask_request_id']=='mock-mask-request'
+        assert manifest['matte']['frames']==12 and manifest['mask_endpoint']=='fal-ai/birefnet/v2 (per frame)','Default mask is not per-frame BiRefNet v2'
+        export('onecall',task/'source.mp4',task/'web-video',{'MASCOT_MASK_MODE':'video','MASCOT_CACHE_DIR':str(task/'video-cache')})
+        video_manifest=json.loads((task/'web-video/onecall.json').read_text())
+        assert video_manifest['mask_endpoint']=='fal-ai/birefnet/v2/video' and video_manifest['mask_request_id']=='mock-mask-request'
         if sys.platform=='darwin':assert (task/'web/first.mov').stat().st_size>0
         subprocess.run(['sh',str(HERE/'voice-line.sh'),str(task/'voice/nested/test.mp3'),'Test line'],env=env,check=True,stdout=subprocess.PIPE)
         assert (task/'voice/nested/test.mp3').stat().st_size>0

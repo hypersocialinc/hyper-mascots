@@ -5,8 +5,11 @@
 #   <out_dir>/<name>.webm  VP9 with alpha   (Chrome, Firefox)
 #   <out_dir>/<name>.mov   HEVC with alpha  (Safari; needs macOS to encode)
 #
-# The character's mask comes from BiRefNet v2 (fal-ai/birefnet/v2/video, a
-# fraction of a cent per clip), so the body is solid on every frame.
+# The character's mask comes from BiRefNet v2 run on EVERY FRAME in parallel
+# (fal-ai/birefnet/v2, the image model; scripts/frame-masks.sh) and FFmpeg puts
+# the frames back together. MASCOT_MASK_MODE=video uses the one-call video
+# endpoint instead: cheaper, but it loses thin parts such as orbit rings.
+# MASCOT_MASK_JOBS (default 8) sets how many frames run at once.
 # MASCOT_STYLE=outline (default) or glow (for an explicitly dark finish).
 # MASCOT_KEEP=all for idles; captions (default) for lip-sync output.
 # MASCOT_FORMATS=webm,mov on macOS; webm by default elsewhere.
@@ -27,6 +30,8 @@ SPEED=${MASCOT_ENCODE_SPEED:-${ORBIE_ENCODE_SPEED:-quality}}
 CROP=${MASCOT_CROP:-${ORBIE_CROP:-crop=iw:ih:0:0}}
 MASK_OVERRIDE=${MASCOT_MASK:-${ORBIE_MASK:-}}
 REFRESH=${MASCOT_REFRESH_MASK:-${ORBIE_REFRESH_MASK:-0}}
+MASK_MODE=${MASCOT_MASK_MODE:-frames}
+case "$MASK_MODE" in frames) MASK_ENDPOINT='fal-ai/birefnet/v2 (per frame)' ;; video) MASK_ENDPOINT=fal-ai/birefnet/v2/video ;; *) echo 'MASCOT_MASK_MODE must be frames or video' >&2; exit 2 ;; esac
 FORMATS=${MASCOT_FORMATS:-}
 if [ -z "$FORMATS" ]; then
   if [ "$(uname -s)" = Darwin ]; then FORMATS=webm,mov; else FORMATS=webm; fi
@@ -62,10 +67,11 @@ then
   MASK_ORIGIN=cache
   RESPONSE=$CACHE/$DIGEST.json
 else
-  genmedia upload "$SRC" --json > "$WORK/upload.json"
-  URL=$("$PY" -c 'import json,sys; print(json.load(open(sys.argv[1]))["cdn_url"])' "$WORK/upload.json")
-  genmedia run fal-ai/birefnet/v2/video --video_url "$URL" --output_mask true --download "$WORK/" --json > "$WORK/bn.json"
-  MASK=$("$PY" - "$WORK/bn.json" <<'PYJSON'
+  if [ "$MASK_MODE" = video ]; then
+    genmedia upload "$SRC" --json > "$WORK/upload.json"
+    URL=$("$PY" -c 'import json,sys; print(json.load(open(sys.argv[1]))["cdn_url"])' "$WORK/upload.json")
+    genmedia run fal-ai/birefnet/v2/video --video_url "$URL" --output_mask true --download "$WORK/" --json > "$WORK/bn.json"
+    MASK=$("$PY" - "$WORK/bn.json" <<'PYJSON'
 import json,sys
 path=sys.argv[1]
 try:
@@ -75,13 +81,19 @@ except (ValueError,KeyError,TypeError,StopIteration) as error:
     raise SystemExit(f"Expected result.mask_video.url and matching downloaded_files in {path}: {error}")
 PYJSON
 )
+  else
+    # default: BiRefNet v2 on every frame in parallel, recomposed with FFmpeg
+    sh "$HERE/frame-masks.sh" "$SRC" "$WORK/frame-mask.mp4" "$WORK/frames"
+    MASK=$WORK/frame-mask.mp4
+    echo "{\"request_id\":null,\"frames\":$(cat "$WORK/frames/mask-frames.txt")}" > "$WORK/bn.json"
+  fi
   cp "$MASK" "$CACHED_MASK.tmp.$$"
   mv "$CACHED_MASK.tmp.$$" "$CACHED_MASK"
-  "$PY" - "$WORK/bn.json" "$CACHED_MASK" "$DIGEST" "$CACHE/$DIGEST.json.tmp.$$" <<'PYRECORD'
+  "$PY" - "$WORK/bn.json" "$CACHED_MASK" "$DIGEST" "$CACHE/$DIGEST.json.tmp.$$" "$MASK_ENDPOINT" <<'PYRECORD'
 import hashlib,json,sys
-response,mask,digest,out=sys.argv[1:];data=json.load(open(response))
+response,mask,digest,out=sys.argv[1:5];data=json.load(open(response))
 record={"source_sha256":digest,"mask_sha256":hashlib.sha256(open(mask,"rb").read()).hexdigest(),
-        "request_id":data.get("request_id"),"endpoint":"fal-ai/birefnet/v2/video"}
+        "request_id":data.get("request_id"),"frames":data.get("frames"),"endpoint":sys.argv[5]}
 with open(out,"w") as file:json.dump(record,file,indent=2)
 PYRECORD
   mv "$CACHE/$DIGEST.json.tmp.$$" "$CACHE/$DIGEST.json"
@@ -140,7 +152,7 @@ import hashlib,json,os,sys
 source,mask,out,name,size,style,keep,speed,digest,response,crop,normalization,reference,origin,matte_stats,formats=sys.argv[1:]
 request_id=json.load(open(response)).get("request_id") if response and os.path.isfile(response) else None
 data={"version":1,"source":os.path.relpath(source,out),"source_sha256":digest,
-      "mask":os.path.relpath(mask,out),"mask_endpoint":"fal-ai/birefnet/v2/video",
+      "mask":os.path.relpath(mask,out),"mask_endpoint":(json.load(open(response)).get("endpoint") if response and os.path.isfile(response) else None),
       "mask_request_id":request_id,"mask_origin":origin,
       "mask_sha256":hashlib.sha256(open(mask,"rb").read()).hexdigest(),"crop":crop,"size":int(size),"fps":24,
       "finish":style,"keep_mode":keep,"encoding":speed,"ink":os.environ.get("MASCOT_INK","#0B0B0F"),"formats":formats.split(","),"matte":json.load(open(matte_stats)),

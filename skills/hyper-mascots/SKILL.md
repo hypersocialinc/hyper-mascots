@@ -49,12 +49,20 @@ save media with `--download`, and queue long jobs with `--async`.
 
 Preserve the approved reference’s face, silhouette, palette, materials, linework,
 and unrelated details while making the requested change. Keep raw sources and
-successful prompts. Condition idle loops with the same first and tail still,
+successful prompts. Condition idle loops with the same first and last still,
 small motion, and a locked camera. Use CSS for element travel/lean/stretch; video
 supplies internal body, expression and prop motion.
 
-Use BiRefNet masks and the included `scripts/matte.py`, not a brightness-only
-cutout. Preserve dark facial/body regions, orbit details, and detached props.
+Motion clips come from `minimax/h3-max/image-to-video`, always with a first
+frame (`image_url`) and a last frame (`end_image_url`): the same still for a
+loop, two stills for a transition. Speech is an ElevenLabs voice line fed to
+`minimax/h3-max/lip-sync/image-to-video`. Do not use Kling or H3 Max Turbo for a
+final asset. Write prompts as what is in the shot, never as what is absent.
+
+Remove backgrounds with BiRefNet v2 on EVERY FRAME in parallel and recompose
+with FFmpeg (`scripts/alpha-clip.sh` does this by default), then the included
+`scripts/matte.py`; never a brightness-only cutout, and not the one-call video
+mask for a final asset. Preserve dark facial/body regions, orbit details, and detached props.
 Match a clip with its OWN source pose/props after the same crop; silhouette area
 is not semantic body alignment across unlike roles. Record fixed reference and
 manual scale separately; do not normalize every frame and erase intended motion.

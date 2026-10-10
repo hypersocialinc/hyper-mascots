@@ -55,11 +55,14 @@ internal chronology, not required inputs or assets for consumers.
 | Evidence | Lesson retained |
 |---|---|
 | #5129–#6152 | Start with stills/loudness mouth states; add costly talking clips after the character/delivery is settled. Moving body clips and static mouth stills are different tiers. |
-| #6152, #6889 | Kling idles use the same source still as first/tail; separate idle, hover, and cover clips preserve their intended behaviors. |
+| #6152, #6889 | A loop uses the same source still as its first and last frame; separate idle, hover, and cover clips preserve their intended behaviors. |
 | #6632 | “Fly fast” changed the silhouette by adding a green tail. Travel, lean, and stretch moved to CSS. |
 | #6652, #6742, #6756 | Brightness cutout made body parts partly transparent. BiRefNet masks and a no-glow ink finish fixed the family’s presentation. |
 | #7054 | Caption-off wording and unknown flags were ignored. Cropping/matting removed burned-in text; inspect actual results. |
-| #8214–#8413 | H3 supplied speech but froze body motion; other video lip-sync attempts failed on the cartoon. Kling motion + H3 speech + tracked face graft was the successful route. |
+| #8214–#8413 | H3 supplied speech but froze body motion; other video lip-sync attempts failed on the cartoon. A separate motion clip + H3 Max lip-sync speech + tracked face graft was the successful route (make the motion clip with H3 Max image-to-video). |
+| 2026-10-10 | Kling 2.5 Turbo smeared thin orbit rings and scribbled a rings-appear transition; the owner rejected the clips. All motion now uses `minimax/h3-max/image-to-video` with a first frame (`image_url`) and a last frame (`end_image_url`); speech is ElevenLabs audio into H3 Max lip-sync. |
+| 2026-10-10 | Naming a thing in order to forbid it draws it: "there are no rings around it" gave H3 Max a halo of rings. Describe only what IS in the shot ("only the blob and the map are in the picture"). |
+| 2026-10-10 | Background removal is BiRefNet v2 on every frame in parallel, recomposed with FFmpeg, then HEVC-alpha for Safari and VP9-alpha for Chromium. The video endpoint is a fallback only. |
 | #8353 | Grafting only the mouth made eyes and mouth disagree. Move the whole face ellipse together, then mask the final composite. |
 | #7085, #7120, #7253 | Wait for the new video’s `playing` event before swapping; invisible duplicate characters must not catch hover/clicks. |
 | #6922, #7997, #7151 | Audio/video drift was visible. Audio became the clock; stop when leaving the scene and restart deliberately on re-entry. |
