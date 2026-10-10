@@ -63,6 +63,8 @@ internal chronology, not required inputs or assets for consumers.
 | 2026-10-10 | Kling 2.5 Turbo smeared thin orbit rings and scribbled a rings-appear transition; the owner rejected the clips. All motion now uses `minimax/h3-max/image-to-video` with a first frame (`image_url`) and a last frame (`end_image_url`); speech is ElevenLabs audio into H3 Max lip-sync. |
 | 2026-10-10 | Naming a thing in order to forbid it draws it: "there are no rings around it" gave H3 Max a halo of rings. Describe only what IS in the shot ("only the blob and the map are in the picture"). |
 | 2026-10-10 | Background removal is BiRefNet v2 on every frame in parallel, recomposed with FFmpeg, then HEVC-alpha for Safari and VP9-alpha for Chromium. The video endpoint is a fallback only. |
+| 2026-10-10 | `genmedia --download <file>` does not overwrite: when the file exists it writes `<file>_1` and the old image stays in place. A regenerated still silently kept the old art until the sheet looked unchanged. Delete the target first, and look at the result before deriving anything from it. |
+| 2026-10-10 | A prop can change during the working loop (a chart card flipping line, bars, pie) as long as the prompt names the starting picture as the last beat, so the loop closes. |
 | #8353 | Grafting only the mouth made eyes and mouth disagree. Move the whole face ellipse together, then mask the final composite. |
 | #7085, #7120, #7253 | Wait for the new video’s `playing` event before swapping; invisible duplicate characters must not catch hover/clicks. |
 | #6922, #7997, #7151 | Audio/video drift was visible. Audio became the clock; stop when leaving the scene and restart deliberately on re-entry. |
