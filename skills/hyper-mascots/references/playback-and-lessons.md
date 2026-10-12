@@ -65,6 +65,7 @@ internal chronology, not required inputs or assets for consumers.
 | 2026-10-10 | Background removal is BiRefNet v2 on every frame in parallel, recomposed with FFmpeg, then HEVC-alpha for Safari and VP9-alpha for Chromium. The video endpoint is a fallback only. |
 | 2026-10-10 | `genmedia --download <file>` does not overwrite: when the file exists it writes `<file>_1` and the old image stays in place. A regenerated still silently kept the old art until the sheet looked unchanged. Delete the target first, and look at the result before deriving anything from it. |
 | 2026-10-10 | A prop can change during the working loop (a chart card flipping line, bars, pie) as long as the prompt names the starting picture as the last beat, so the loop closes. |
+| 2026-10-11 | Faults a person found in clips already called fine: a walk drawn on twos, legs racing at 3× into a landing, a turn through a back view, a turn with eyes shut, a head that grows at the front view. Each is now looked for in every take before it is kept ([clip checks](clip-checks.md)); a check may refuse only once it finds its own known-bad clip. |
 | #8353 | Grafting only the mouth made eyes and mouth disagree. Move the whole face ellipse together, then mask the final composite. |
 | #7085, #7120, #7253 | Wait for the new video’s `playing` event before swapping; invisible duplicate characters must not catch hover/clicks. |
 | #6922, #7997, #7151 | Audio/video drift was visible. Audio became the clock; stop when leaving the scene and restart deliberately on re-entry. |
