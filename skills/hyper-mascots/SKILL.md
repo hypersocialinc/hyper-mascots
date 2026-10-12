@@ -33,6 +33,8 @@ Read only the references relevant to the task:
   static fallbacks, and format verification.
 - [Playback and lessons](references/playback-and-lessons.md): state transitions,
   one voice owner, cancellation tokens, and preventing mixed or stale lines.
+- [Checking a take](references/clip-checks.md): the faults to look for in every
+  generated clip before it is kept, what to measure, and how to calibrate.
 
 ## Execute through GenMedia
 
@@ -88,6 +90,9 @@ HyperCoder integrations. Dependencies: GenMedia, FFmpeg/FFprobe, Python with
 Pillow/NumPy/SciPy. HEVC-with-alpha encoding additionally uses macOS VideoToolbox;
 WebM can be prepared on other supported FFmpeg platforms.
 
+Check every take before it is kept (held drawings, a racing tail, scale against
+its own still, the loop's wrap, colour under zero alpha), with the project's clip
+gate when it has one; a passing score does not replace watching it move.
 Inspect representative frames and loop boundaries on the destination surfaces;
 verify alpha, props, size, browser playback, reduced motion, and audio ownership.
 Say whether the voice was heard and a complete loop watched; a contact sheet does
